@@ -1,0 +1,19 @@
+created:
+    - database/factories/IssuingLicenseFactory.php
+    - database/factories/MunicipalityFactory.php
+    - database/factories/RegionFactory.php
+    - database/factories/LicenseTypeFactory.php
+    - database/migrations/2024_11_01_234752_create_issuing_licenses_table.php
+    - database/migrations/2024_11_01_234753_create_municipalities_table.php
+    - database/migrations/2024_11_01_234754_create_regions_table.php
+    - database/migrations/2024_11_01_234755_create_license_types_table.php
+    - app/Models/IssuingLicense.php
+    - app/Models/Municipality.php
+    - app/Models/Region.php
+    - app/Models/LicenseType.php
+models:
+    User: {  }
+    IssuingLicense: { fullName: 'string:255', nationalID: 'string:20', passportOrID: 'string:20', phoneNumber: 'string:15', projectName: 'string:255', positionInProject: 'string:50', projectAddress: 'string:255', municipality_id: foreignId, region_id: foreignId, license_type_id: foreignId, nearestLandmark: 'string:100', licenseDate: date, licenseNumber: 'string:15', licenseDuration: integer, licenseFee: integer, discount: integer, chamberOfCommerceNumber: 'string:20', taxNumber: 'string:20', economicNumber: 'string:20', timestamps: true }
+    Municipality: { name: 'string:100', timestamps: true }
+    Region: { municipality_id: foreignId, name: 'string:100', timestamps: true }
+    LicenseType: { category: 'string:50', type: 'string:100', timestamps: true }

@@ -1,0 +1,48 @@
+models:
+  IssuingLicense:
+    fullName: string:255           # الاسم الرباعي
+    nationalID: string:20          # الرقم الوطني
+    passportOrID: string:20        # رقم جواز أو بطاقة
+    phoneNumber: string:15         # رقم الهاتف
+    projectName: string:255        # اسم المشروع
+    positionInProject: string:50   # صفتك في المشروع
+    projectAddress: string:255     # عنوان المشروع
+    municipality_id: foreignId     # معرف البلدية كمرجع
+    region_id: foreignId           # معرف المحلة كمرجع
+    license_type_id: foreignId     # معرف نوع الترخيص كمرجع
+    nearestLandmark: string:100    # أقرب نقطة دالة
+    licenseDate: date               # التاريخ يكون اليوم افتراضياً
+    licenseNumber: string:15 # رقم ترخيص عشوائي تلقائي بطول 10
+    licenseDuration: integer       # مدة الترخيص
+    licenseFee: integer            # رسوم الترخيص
+    discount: integer              # نسبة الخصم
+    chamberOfCommerceNumber: string:20  # رقم قيد الغرفة التجارية
+    taxNumber: string:20                # الرقم الضريبي
+    economicNumber: string:20           # رقم الاقتصاد
+    timestamps: true                    # الطوابع الزمنية (تاريخ الإنشاء والتحديث)
+
+  Municipality:
+    name: string:100               # اسم البلدية
+    timestamps: true               # الطوابع الزمنية
+
+  Region:
+    municipality_id: foreignId     # معرف البلدية كمرجع
+    name: string:100               # اسم المحلة
+    timestamps: true               # الطوابع الزمنية
+
+  LicenseType:
+    category: string:50            # نوع الفئة (نشاط فردي، شركة)
+    type: string:100               # النوع التفصيلي للنشاط أو الشركة
+    timestamps: true               # الطوابع الزمنية
+
+relations:
+  IssuingLicense:
+    municipality: belongsTo            # كل رخصة مرتبطة ببلدية
+    region: belongsTo                  # كل رخصة مرتبطة بمحلة
+    licenseType: belongsTo:LicenseType # كل رخصة مرتبطة بنوع ترخيص
+
+  Region:
+    municipality: belongsTo            # كل محلة مرتبطة ببلدية
+
+  LicenseType:
+    issuingLicenses: hasMany:IssuingLicense  # كل نوع ترخيص مرتبط بعدة رخص إصدار
