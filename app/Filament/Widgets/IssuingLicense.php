@@ -31,17 +31,20 @@ class IssuingLicense extends BaseWidget
             Stat::make('الرخص المنتهية الصلاحية', $expiredLicenses . ' رخصة')
                 ->description('عدد الرخص التي انتهت صلاحيتها')
                 ->descriptionIcon('heroicon-o-exclamation-circle')
-                ->color('primary'),
+                ->color('danger')
+                ->chart([$expiredLicenses, $remainingLicenses]),
 
             Stat::make('اجمالي الخزينة', number_format($totalDiscount, 2) . ' د.ل')
                 ->description('إجمالي الرسوم المالية المدفوعة')
                 ->descriptionIcon('heroicon-o-currency-dollar')
-                ->color('success'),
+                ->color('success')
+                ->chart([$totalDiscount, $totalLost]),
 
             Stat::make('الفاقد من الرخص', number_format($totalLost, 2) . ' د.ل')
                 ->description('إجمالي الرسوم المالية المفقودة')
                 ->descriptionIcon('heroicon-o-currency-dollar')
-                ->color('danger'),
+                ->color('danger')
+                ->chart([$totalLost, $totalDiscount]),
         ];
     }
 }

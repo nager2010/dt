@@ -9,19 +9,20 @@ use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Resources\Resource;
+use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 
 class ExpiredLicensesResource extends Resource
 {
-    protected static ?string $model = IssuingLicense::class; // الربط مع الموديل
+    protected static ?string $model = IssuingLicense::class;
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationLabel = 'الرخص المنتهية';
     protected static ?string $slug = 'expired-licenses';
 
     public static function form(Forms\Form $form): Forms\Form
     {
-        return $form->schema([]); // لا حاجة إلى نموذج
+        return $form->schema([]);
     }
 
     public static function getHeaderActions(): array
@@ -41,12 +42,11 @@ class ExpiredLicensesResource extends Resource
         ];
     }
 
-
     public static function table(Tables\Table $table): Tables\Table
     {
         return $table
             ->query(
-                IssuingLicense::query() // عرض جميع البيانات
+                IssuingLicense::query()
             )
             ->columns([
                 TextColumn::make('fullName')
@@ -73,8 +73,13 @@ class ExpiredLicensesResource extends Resource
                     ->label('رسوم الترخيص')
                     ->sortable(),
 
-                TextColumn::make('status')
+                BadgeColumn::make('status')
                     ->label('الحالة')
+                    ->colors([
+                        'danger' => fn ($record) => $record->endDate && $record->endDate < now(),
+                        'success' => fn ($record) => $record->endDate && $record->endDate >= now(),
+                        'secondary' => fn ($record) => !$record->endDate,
+                    ])
                     ->formatStateUsing(function ($record) {
                         if (!$record->endDate) {
                             return 'قيد الإجراء';
@@ -89,8 +94,6 @@ class ExpiredLicensesResource extends Resource
             ])
             ->defaultSort('endDate', 'desc');
     }
-
-
 
     public static function getPages(): array
     {

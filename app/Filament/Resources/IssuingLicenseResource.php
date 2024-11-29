@@ -164,11 +164,14 @@ class IssuingLicenseResource extends Resource
                                 }),
 
                             TextInput::make('positionInProject')
-                                ->label('صفتك في المشروع')
+                                ->label('صفتك في النشاط')
                                 ->maxLength(50),
                             TextInput::make('projectAddress')
-                                ->label('عنوان المشروع')
+                                ->label('عنوان النشاط')
                                 ->maxLength(255),
+                            TextInput::make('nearestLandmark')
+                                ->label('تخصص النشاط')
+                                ->maxLength(100),
                             Select::make('municipality_id')
                                 ->label('البلدية')
                                 ->options(\App\Models\Municipality::pluck('name', 'id'))
@@ -192,9 +195,6 @@ class IssuingLicenseResource extends Resource
                                 })
                                 ->searchable() // يمكن البحث في القائمة
                                 ->required(),
-                            TextInput::make('nearestLandmark')
-                                ->label('أقرب نقطة دالة')
-                                ->maxLength(100),
                             Select::make('license_type_id')
                                 ->label('نوع الترخيص')
                                 ->options([
@@ -291,7 +291,7 @@ class IssuingLicenseResource extends Resource
                 TextColumn::make('projectAddress')->label('عنوان المشروع')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('municipality')->label('البلدية')->sortable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('region')->label('المحلة')->sortable()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('nearestLandmark')->label('أقرب نقطة دالة')->searchable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('nearestLandmark')->label('تخصص النشاط')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('license_type_id')
                     ->label('نوع الترخيص')
                     ->sortable()
@@ -358,9 +358,9 @@ class IssuingLicenseResource extends Resource
 
 
 
-        TextColumn::make('chamberOfCommerceNumber')->label('رقم قيد الغرفة التجارية')->searchable()->toggleable(isToggledHiddenByDefault: true),
+        TextColumn::make('chamberOfCommerceNumber')->label('رقم الايصال المالي')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('taxNumber')->label('الرقم الضريبي')->searchable()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('economicNumber')->label('رقم الاقتصاد')->searchable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('economicNumber')->label('رقم السجل التجاري')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')->label('تاريخ الإنشاء')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')->label('تاريخ التحديث')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -415,7 +415,7 @@ class IssuingLicenseResource extends Resource
                                         ->columnSpan(1)
                                         ->disabled(),
                                     TextInput::make('chamberOfCommerceNumber')
-                                        ->label('رقم السجل التجاري')
+                                        ->label('رقم الايصال المالي')
                                         ->columnSpan(1)
                                         ->disabled(),
                                 ])->columnSpan(3),
@@ -466,16 +466,16 @@ class IssuingLicenseResource extends Resource
                             : 'غير محدد';
 
                         return $data;
-                    })
+                 }),
 
         //add printing
-               // Action::make('print')
-                  //  ->label('طباعة')
-               //     ->icon('heroicon-o-printer')
-                  //  ->action(function ($record) {
-                  //      return \App\Filament\Resources\IssuingLicenseResource::printRecord($record);
-                  //  })
-                  //  ->color('primary'), // تخصيص اللون,
+                Action::make('print')
+                    ->label('طباعة')
+                    ->icon('heroicon-o-printer')
+                    ->action(function ($record) {
+                        return \App\Filament\Resources\IssuingLicenseResource::printRecord($record);
+                    })
+                    ->color('primary'), // تخصيص اللون,
            ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make(),
@@ -510,22 +510,42 @@ class IssuingLicenseResource extends Resource
     }
 
 
-    public static function printRecord($record)
+    public static function printRecord($record): \Illuminate\Foundation\Application|\Illuminate\Http\Response|\Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory
     {
-        $mpdf = new Mpdf();
+        // إنشاء كائن Mpdf مع الإعدادات
+        $mpdf = new \Mpdf\Mpdf([
+            'default_font' => 'Cairo', // تعيين الخط الافتراضي
+            'mode' => 'utf-8',         // دعم UTF-8
+            'directionality' => 'rtl', // دعم النصوص من اليمين إلى اليسار
+        ]);
 
-        // قم بإنشاء محتوى التقرير باستخدام عرض Blade
-        $html = view('reports.single_license', compact('record'))->render();
+
+        // حساب "المدة بالحروف" بناءً على مدة الترخيص
+        $modah = isset($record->licenseDuration)
+            ? \App\Helpers\NumberHelper::yearsToWords($record->licenseDuration)
+            : 'غير محدد';
+
+        // حساب الإجمالي بالحروف إذا كان الخصم موجودًا
+        $ejmalybelhroof = isset($record->discount) && $record->discount > 0
+            ? \App\Helpers\NumberHelper::amountToWords($record->discount)
+            : 'لا توجد بيانات';
+
+        // إنشاء محتوى التقرير باستخدام عرض Blade
+        $html = view('reports.single_license', [
+            'record' => $record,
+            'modah' => $modah,                // المدة بالحروف
+            'ejmalybelhroof' => $ejmalybelhroof, // الإجمالي بالحروف
+        ])->render();
 
         // كتابة التقرير إلى ملف PDF
         $mpdf->WriteHTML($html);
 
         // عرض ملف PDF مباشرة
-        $output = $mpdf->Output('license-' . $record->id . '.pdf', 'I');
-
-        return response($output, 200)
+        return response($mpdf->Output('license-' . $record->id . '.pdf', 'I'), 200)
             ->header('Content-Type', 'application/pdf');
     }
+
+
     function numberToWords($number, $locale = 'ar'): string
     {
         $formatter = new \NumberFormatter($locale, \NumberFormatter::SPELLOUT);

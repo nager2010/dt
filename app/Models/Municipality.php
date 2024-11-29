@@ -31,7 +31,7 @@ class Municipality extends Model
     /**
      * Relationship: A Municipality has many Regions.
      */
-    public function regions()
+    public function regions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Region::class);
     }

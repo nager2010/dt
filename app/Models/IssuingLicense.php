@@ -105,6 +105,16 @@ class IssuingLicense extends Model
             }
         });
     }
+    public function municipality(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Municipality::class, 'municipality_id');
+    }
+
+    public function region(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Region::class, 'region_id');
+    }
+
 
 
 
