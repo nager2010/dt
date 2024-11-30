@@ -21,6 +21,8 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Str;
 use Mpdf\Mpdf;
+use Mpdf\Config\ConfigVariables;
+use Mpdf\Config\FontVariables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ViewAction;
 use NumberToWords\NumberToWords;
@@ -54,7 +56,7 @@ class IssuingLicenseResource extends Resource
                             TextInput::make('fullName')
                                 ->label('الاسم الرباعي')
                                 ->required()
-                                ->maxLength(255),
+                                ->maxLength(120),
                             TextInput::make('nationalID')
                                 ->label('الرقم الوطني')
                                 ->required()
@@ -67,74 +69,27 @@ class IssuingLicenseResource extends Resource
                                 ->tel()
                                 ->required()
                                 ->maxLength(15),
-                            TextInput::make('email')
-                                ->label('البريد الإلكتروني') // الحقل الجديد
-                                ->email() // التحقق من الصلاحية كبريد إلكتروني
-                                ,
+
                             \Filament\Forms\Components\Fieldset::make('رمز التسجيل')
                                 ->schema([
-                                    \Filament\Forms\Components\Grid::make(9) // تقسيم الشبكة إلى 9 أعمدة
-                                    ->schema([
-                                        TextInput::make('digit_1')
-                                            ->label('') // إزالة التسمية
-                                            ->numeric() // الحقل يقبل أرقام فقط
-                                            ->maxLength(1) // كل حقل يقبل رقمًا واحدًا
-                                            ->required('ادخل الرقم'), // القيمة الافتراضية
+                                    TextInput::make('registrationCode')
+                                        ->label('رمز التسجيل') // التسمية للحقل
+                                        ->numeric() // السماح فقط بالأرقام
+                                        ->required() // الحقل مطلوب
+                                        ->rule('regex:/^1010\d{5}$/') // يبدأ بـ 1010 ويتبعه 5 أرقام
+                                        ->maxLength(9) // الحد الأقصى 9 أرقام
+                                        ->validationMessages([
+                                            'regex' => 'يجب أن يبدأ بـ 1010 متبوعًا بـ 5 أرقام']) // تخصيص رسالة regex
+                                        ->placeholder('يجب أن يبدأ بـ 1010 متبوعًا بـ 5 أرقام'), // نص توضيحي (لاحظ الفاصلة هنا)
 
-                                        TextInput::make('digit_2')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required(), // القيمة الافتراضية
-
-                                        TextInput::make('digit_3')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required(), // القيمة الافتراضية
-
-                                        TextInput::make('digit_4')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required(), // القيمة الافتراضية
-
-                                        TextInput::make('digit_5')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required(),
-
-                                        TextInput::make('digit_6')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required()
-                                            ->default(0),
-
-                                        TextInput::make('digit_7')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required()
-                                            ->default(1),
-
-                                        TextInput::make('digit_8')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required()
-                                            ->default(0),
-
-                                        TextInput::make('digit_9')
-                                            ->label('')
-                                            ->numeric()
-                                            ->maxLength(1)
-                                            ->required()
-                                            ->default(1),
-                                    ]),
+                                    TextInput::make('email')
+                                        ->label('البريد الإلكتروني') // الحقل الجديد
+                                        ->maxLength(120)
+                                        ->email() // التحقق من الصلاحية كبريد إلكتروني
                                 ])
-                                ->label('رمز التسجيل') // التسمية الخاصة بـ Fieldset
+
+
+
 
 
                         ])->columns(2),
@@ -144,17 +99,22 @@ class IssuingLicenseResource extends Resource
                         ->description('أدخل تفاصيل الرخصة')
                         ->schema([
                             TextInput::make('projectName')
-                                ->label('اسم المشروع')
+                                ->label('اسم النشاط')
                                 ->required()
-                                ->maxLength(255)
+                                ->validationMessages([
+                                    'regex' => 'يجب ان لا يحتوي على حروف انجليزية او ارقام'])
+                                ->maxLength(120)
                                 ->rule('regex:/^[\p{Arabic}\s]+$/u') // السماح بالأحرف العربية فقط
-                                ->rule(function ($get) {
-                                    return function ($attribute, $value, $fail) use ($get) {
+                                ->rule(function ($get, $record) {
+                                    return function ($attribute, $value, $fail) use ($get, $record) {
                                         $licenseTypeId = $get('license_type_id'); // الحصول على نوع الترخيص
 
-                                        // التحقق من وجود اسم مشروع بنفس النوع
+                                        // إذا كان السجل موجودًا (تعديل)، استثنِ السجل الحالي من التحقق
                                         $exists = \App\Models\IssuingLicense::where('projectName', $value)
                                             ->where('license_type_id', $licenseTypeId)
+                                            ->when($record, function ($query) use ($record) {
+                                                return $query->where('id', '!=', $record->id); // استثناء السجل الحالي
+                                            })
                                             ->exists();
 
                                         if ($exists) {
@@ -162,16 +122,22 @@ class IssuingLicenseResource extends Resource
                                         }
                                     };
                                 }),
-
-                            TextInput::make('positionInProject')
-                                ->label('صفتك في النشاط')
-                                ->maxLength(50),
-                            TextInput::make('projectAddress')
-                                ->label('عنوان النشاط')
-                                ->maxLength(255),
                             TextInput::make('nearestLandmark')
                                 ->label('تخصص النشاط')
                                 ->maxLength(100),
+                            Select::make('positionInProject')
+                                ->label('صفتك في النشاط') // التسمية للحقل
+                                ->options([
+                                    'owner' => 'صاحب نشاط',           // خيار صاحب النشاط
+                                    'general_manager' => 'مدير عام الشركة', // خيار مدير عام الشركة
+                                    'chairman' => 'رئيس مجلس إدارة الشركة', // خيار رئيس مجلس الإدارة
+                                ])
+                                , // الحقل مطلوب
+
+                            TextInput::make('projectAddress')
+                                ->label('عنوان النشاط')
+                                ->maxLength(160),
+
                             Select::make('municipality_id')
                                 ->label('البلدية')
                                 ->options(\App\Models\Municipality::pluck('name', 'id'))
@@ -367,7 +333,6 @@ class IssuingLicenseResource extends Resource
             ->filters([
                 //
             ])
-
             ->actions([
                 Tables\Actions\EditAction::make(),
                 ViewAction::make()
@@ -505,27 +470,39 @@ class IssuingLicenseResource extends Resource
         return [
             'index' => Pages\ListIssuingLicenses::route('/'),
             'create' => Pages\CreateIssuingLicense::route('/create'),
-            'edit' => Pages\EditIssuingLicense::route('/{record}/edit'),
+//            'edit' => Pages\EditIssuingLicense::route('/{record}/edit'),
         ];
     }
 
 
     public static function printRecord($record): \Illuminate\Foundation\Application|\Illuminate\Http\Response|\Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory
     {
-        // إنشاء كائن Mpdf مع الإعدادات
+        // إعداد مسار الخطوط
+        $fontDirs = (new \Mpdf\Config\ConfigVariables())->getDefaults()['fontDir'];
+        $fontDirs[] = resource_path('fonts'); // إضافة مسار الخطوط
+
+        // إعداد بيانات الخطوط
+        $fontData = (new \Mpdf\Config\FontVariables())->getDefaults()['fontdata'];
+        $fontData['amiri'] = [ // خط "Amiri" يدعم النصوص العربية المتصلة
+            'R' => 'Amiri-Regular.ttf',    // النسخة العادية
+            'B' => 'Amiri-Bold.ttf',       // النسخة العريضة
+        ];
+
+        // إنشاء كائن Mpdf
         $mpdf = new \Mpdf\Mpdf([
-            'default_font' => 'Cairo', // تعيين الخط الافتراضي
-            'mode' => 'utf-8',         // دعم UTF-8
-            'directionality' => 'rtl', // دعم النصوص من اليمين إلى اليسار
+            'default_font' => 'amiri',      // تعيين Amiri كخط افتراضي
+            'fontDir' => $fontDirs,         // إضافة مسار الخطوط
+            'fontdata' => $fontData,        // إضافة بيانات الخطوط
+            'mode' => 'utf-8',              // دعم UTF-8
+            'directionality' => 'rtl',      // دعم النصوص من اليمين إلى اليسار
         ]);
 
-
-        // حساب "المدة بالحروف" بناءً على مدة الترخيص
+        // حساب "المدة بالحروف"
         $modah = isset($record->licenseDuration)
             ? \App\Helpers\NumberHelper::yearsToWords($record->licenseDuration)
             : 'غير محدد';
 
-        // حساب الإجمالي بالحروف إذا كان الخصم موجودًا
+        // حساب الإجمالي بالحروف
         $ejmalybelhroof = isset($record->discount) && $record->discount > 0
             ? \App\Helpers\NumberHelper::amountToWords($record->discount)
             : 'لا توجد بيانات';
@@ -533,8 +510,8 @@ class IssuingLicenseResource extends Resource
         // إنشاء محتوى التقرير باستخدام عرض Blade
         $html = view('reports.single_license', [
             'record' => $record,
-            'modah' => $modah,                // المدة بالحروف
-            'ejmalybelhroof' => $ejmalybelhroof, // الإجمالي بالحروف
+            'modah' => $modah,
+            'ejmalybelhroof' => $ejmalybelhroof,
         ])->render();
 
         // كتابة التقرير إلى ملف PDF

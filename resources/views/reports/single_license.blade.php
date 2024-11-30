@@ -92,13 +92,15 @@
             <span class="inline"><strong>الاسم التجاري:</strong> {{ $record->projectName }}</span>
             <span class="inline"><strong>البريد الإلكتروني:</strong> {{ $record->email }}</span>
         </p>
-        <table class="table">
+        <table class="table" dir="ltr"> <!-- تحديد الاتجاه من اليسار لليمين -->
             <tr>
                 @foreach(str_split($record->registrationCode) as $digit)
                     <td>{{ $digit }}</td>
                 @endforeach
+                <td><strong>سجلت تحت رمز</strong></td> <!-- إضافة الخلية في نهاية الصف -->
             </tr>
         </table>
+
         <p>
             <span class="inline"><strong>هذه الرخصة صالحة إلى:</strong> {{ \Carbon\Carbon::parse($record->endDate)->format('Y-m-d') }}</span>
             <span class="inline"><strong>المدة بالحروف:</strong> {{ $modah }} من تاريخ الإصدار</span>
@@ -115,14 +117,22 @@
             <span class="inline"><strong>صدرت بتاريخ:</strong> {{ \Carbon\Carbon::parse($record->licenseDate)->format('Y-m-d') }}</span>
             <span class="inline"><strong>يسري هذا الترخيص لمدة:</strong> {{ $modah }} من تاريخ إصداره</span>
         </p>
-        <div class="footer">
-            <p><strong>مدير مكتب الرخص التجارية سبها</strong></p>
-            <h3>محمد سلطان</h3>
+        <div class="footer" style="display: flex; align-items: center; justify-content: space-between; font-size: 18px; padding: 10px;">
+            <!-- رمز QR على اليمين -->
+            <div style="text-align: right; color: white;">
+                {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(50)->generate($record->licenseNumber) !!}
+            </div>
+            <div style="text-align: left;">
+
+                <p style="font-size: 18px; font-weight: bold; margin-top: 5px;">مدير مكتب التراخيص {{ $record->municipality->name ?? 'غير محدد' }} </p>
+            </div>
+
+            <!-- النصوص على اليسار -->
+            <div style="text-align: left;">
+                <p style="font-size: 24px; font-weight: bold; margin-left: 30PX;">محمد سلطان</p>
+            </div>
         </div>
-        <!-- إضافة رمز QR هنا -->
-        <div>
-            {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(150)->generate($record->licenseNumber) !!}
-        </div>
+
 
 
     </div>

@@ -7,4 +7,7 @@ return [
         'only_one_must_be_selected' => 'يجب تحديد حقل :attribute واحد فقط.',
     ],
 
+    // إضافة رسالة required
+    'required' => 'هذا الحقل مطلوب.',
+
 ];
