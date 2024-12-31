@@ -13,9 +13,13 @@ class IssuingLicenseStateWidget extends BaseWidget
     protected function getStats(): array
     {
         // حساب الإحصائيات
-        $companyCount = IssuingLicense::where('license_type_id', 'company')->count();
-        $individualActivitiesCount = IssuingLicense::where('license_type_id', 'individual')->count();
         $totalLicensesCount = IssuingLicense::count();
+        
+        // إحصائيات حسب نوع الترخيص
+        $companyCount = IssuingLicense::where('license_type_id', 'company')->count();
+        $individualCount = IssuingLicense::where('license_type_id', 'individual')->count();
+        
+        // إحصائيات حسب النشاط
         $commercialCount = IssuingLicense::where('license_type_id', 'commercial')->count();
         $industrialCount = IssuingLicense::where('license_type_id', 'industrial')->count();
         $craftServiceCount = IssuingLicense::where('license_type_id', 'craft_service')->count();
@@ -24,63 +28,74 @@ class IssuingLicenseStateWidget extends BaseWidget
         $streetVendorCount = IssuingLicense::where('license_type_id', 'street_vendor')->count();
         $holdingCompanyCount = IssuingLicense::where('license_type_id', 'holding_company')->count();
 
+        // إحصائيات الشهر الحالي
+        $currentMonthCount = IssuingLicense::whereMonth('created_at', now()->month)->count();
+        $lastMonthCount = IssuingLicense::whereMonth('created_at', now()->subMonth()->month)->count();
+        $monthlyGrowth = $lastMonthCount > 0 ? (($currentMonthCount - $lastMonthCount) / $lastMonthCount) * 100 : 0;
+
+        // حساب النسب المئوية بأمان
+        $companyPercentage = $totalLicensesCount > 0 ? ($companyCount / $totalLicensesCount) * 100 : 0;
+        $individualPercentage = $totalLicensesCount > 0 ? ($individualCount / $totalLicensesCount) * 100 : 0;
+
         return [
-            // إجمالي الرخص يشغل عرض الشبكة بالكامل
-            Stat::make('إجمالي الرخص', $totalLicensesCount)
-                ->description('مجموع الرخص بالكامل')
-                ->descriptionIcon('heroicon-o-user-group')
-                ->chart([$individualActivitiesCount, $totalLicensesCount, $companyCount])
+            // إجمالي الرخص مع نسبة النمو الشهري
+            Stat::make('إجمالي الرخص', number_format($totalLicensesCount))
+                ->description($totalLicensesCount > 0 ? sprintf('نمو شهري %.1f%%', $monthlyGrowth) : 'لا توجد رخص')
+                ->descriptionIcon($monthlyGrowth >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
+                ->color($monthlyGrowth >= 0 ? 'success' : 'danger')
+                ->chart([$lastMonthCount, $currentMonthCount])
+                ->extraAttributes(['class' => 'col-span-2']),
+
+            // تصنيف الرخص (شركات/أفراد)
+            Stat::make('رخص الشركات', number_format($companyCount))
+                ->description($totalLicensesCount > 0 ? sprintf('%.1f%% من الإجمالي', $companyPercentage) : 'لا توجد رخص')
+                ->descriptionIcon('heroicon-m-building-office')
                 ->color('primary')
-                ->extraAttributes(['class' => 'col-span-4']), // امتداد كامل للشبكة
+                ->chart([$companyCount, $totalLicensesCount - $companyCount])
+                ->extraAttributes(['class' => 'col-span-2']),
 
-            // الإحصائيات الأخرى بحجم قياسي
-            Stat::make('تجاري', $commercialCount)
-                ->description('عدد الرخص التجارية')
-                ->descriptionIcon('heroicon-o-building-office')
+            Stat::make('رخص الأفراد', number_format($individualCount))
+                ->description($totalLicensesCount > 0 ? sprintf('%.1f%% من الإجمالي', $individualPercentage) : 'لا توجد رخص')
+                ->descriptionIcon('heroicon-m-user')
+                ->color('warning')
+                ->chart([$individualCount, $totalLicensesCount - $individualCount])
+                ->extraAttributes(['class' => 'col-span-2']),
+
+            // الأنشطة التجارية
+            Stat::make('النشاط التجاري', number_format($commercialCount))
+                ->description('رخص تجارية')
+                ->descriptionIcon('heroicon-m-shopping-bag')
                 ->color('info')
-                ->chart([$commercialCount, $totalLicensesCount])
                 ->extraAttributes(['class' => 'col-span-1']),
 
-            Stat::make('صناعي', $industrialCount)
-                ->description('عدد الرخص الصناعية')
-                ->descriptionIcon('heroicon-o-cog')
+            Stat::make('النشاط الصناعي', number_format($industrialCount))
+                ->description('رخص صناعية')
+                ->descriptionIcon('heroicon-m-cog')
                 ->color('info')
-                ->chart([$industrialCount, $totalLicensesCount])
                 ->extraAttributes(['class' => 'col-span-1']),
 
-            Stat::make('حرفي خدمي', $craftServiceCount)
-                ->description('عدد الرخص الحرفية الخدمية')
-                ->descriptionIcon('heroicon-o-adjustments-horizontal')
-                ->color('info')
-                ->chart([$craftServiceCount, $totalLicensesCount])
+            Stat::make('الخدمات الحرفية', number_format($craftServiceCount))
+                ->description('رخص حرفية')
+                ->descriptionIcon('heroicon-m-wrench')
+                ->color('success')
                 ->extraAttributes(['class' => 'col-span-1']),
 
-            Stat::make('خدمي مهني', $professionalServiceCount)
-                ->description('عدد الرخص المهنية الخدمية')
-                ->descriptionIcon('heroicon-o-briefcase')
-                ->color('info')
-                ->chart([$professionalServiceCount, $totalLicensesCount])
+            Stat::make('الخدمات المهنية', number_format($professionalServiceCount))
+                ->description('رخص مهنية')
+                ->descriptionIcon('heroicon-m-academic-cap')
+                ->color('success')
                 ->extraAttributes(['class' => 'col-span-1']),
 
-            Stat::make('عام', $generalCount)
-                ->description('عدد الرخص العامة')
-                ->descriptionIcon('heroicon-o-globe-alt')
-                ->color('info')
-                ->chart([$generalCount, $totalLicensesCount])
+            Stat::make('الرخص العامة', number_format($generalCount))
+                ->description('رخص عامة')
+                ->descriptionIcon('heroicon-m-clipboard-document-list')
+                ->color('gray')
                 ->extraAttributes(['class' => 'col-span-1']),
 
-            Stat::make('بائع متجول', $streetVendorCount)
-                ->description('عدد رخص الباعة المتجولين')
-                ->descriptionIcon('heroicon-o-shopping-cart')
-                ->color('info')
-                ->chart([$streetVendorCount, $totalLicensesCount])
-                ->extraAttributes(['class' => 'col-span-1']),
-
-            Stat::make('شركة قابضة', $holdingCompanyCount)
-                ->description('عدد رخص الشركات القابضة')
-                ->descriptionIcon('heroicon-o-home')
-                ->color('info')
-                ->chart([$holdingCompanyCount, $totalLicensesCount])
+            Stat::make('الباعة المتجولين', number_format($streetVendorCount))
+                ->description('رخص متجولين')
+                ->descriptionIcon('heroicon-m-truck')
+                ->color('warning')
                 ->extraAttributes(['class' => 'col-span-1']),
         ];
     }

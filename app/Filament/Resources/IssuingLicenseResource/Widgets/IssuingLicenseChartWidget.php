@@ -9,9 +9,9 @@ use Flowframe\Trend\TrendValue;
 
 class IssuingLicenseChartWidget extends ChartWidget
 {
-    protected static ?string $heading = 'Issuing License Chart';
+    protected static ?string $heading = 'إحصائيات الرخص';
 
-    protected static ?string $maxHeight = '200px';
+    protected static ?string $maxHeight = '300px';
 
     protected int | string | array $columnSpan = 'full';
 
@@ -21,9 +21,11 @@ class IssuingLicenseChartWidget extends ChartWidget
     protected function getFilters(): ?array
     {
         return [
-            'week' => 'الأسبوع',
-            'month' => 'الشهر',
-            '3month' => 'ثلاثة أشهر',
+            'week' => 'الأسبوع الحالي',
+            'month' => 'الشهر الحالي',
+            '3month' => 'آخر 3 أشهر',
+            '6month' => 'آخر 6 أشهر',
+            'year' => 'السنة الحالية',
         ];
     }
 
@@ -36,14 +38,14 @@ class IssuingLicenseChartWidget extends ChartWidget
         $data = match($filter) {
             'week' => Trend::model(IssuingLicense::class)
                 ->between(
-                    start: now()->subWeek(),
+                    start: now()->startOfWeek(),
                     end: now(),
                 )
                 ->perDay()
                 ->count(),
             'month' => Trend::model(IssuingLicense::class)
                 ->between(
-                    start: now()->subMonth(),
+                    start: now()->startOfMonth(),
                     end: now(),
                 )
                 ->perDay()
@@ -55,15 +57,33 @@ class IssuingLicenseChartWidget extends ChartWidget
                 )
                 ->perMonth()
                 ->count(),
+            '6month' => Trend::model(IssuingLicense::class)
+                ->between(
+                    start: now()->subMonths(6),
+                    end: now(),
+                )
+                ->perMonth()
+                ->count(),
+            'year' => Trend::model(IssuingLicense::class)
+                ->between(
+                    start: now()->startOfYear(),
+                    end: now(),
+                )
+                ->perMonth()
+                ->count(),
         };
 
         // إعداد البيانات للإرجاع
         return [
             'datasets' => [
                 [
-                    'label' => 'التراخيص',
+                    'label' => 'عدد الرخص',
                     'data' => $data->map(fn (TrendValue $value) => $value->aggregate),
-                ],
+                    'fill' => true,
+                    'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
+                    'borderColor' => 'rgb(59, 130, 246)',
+                    'tension' => 0.3,
+                ]
             ],
             'labels' => $data->map(fn (TrendValue $value) => $value->date),
         ];

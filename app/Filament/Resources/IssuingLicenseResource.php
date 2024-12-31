@@ -3,6 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Enum\LicenseType;
+use Mpdf\Output\Destination;
+use Illuminate\Support\Collection;
 use App\Filament\Resources\IssuingLicenseResource\Pages;
 use App\Models\IssuingLicense;
 use App\Models\Municipality;
@@ -38,6 +40,8 @@ class IssuingLicenseResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationLabel = 'اصدار الرخص';
+
+
 
 
 
@@ -99,32 +103,38 @@ class IssuingLicenseResource extends Resource
                         ->description('أدخل تفاصيل الرخصة')
                         ->schema([
                             TextInput::make('projectName')
-                                ->label('اسم النشاط')
-                                ->required()
-                                ->validationMessages([
-                                    'regex' => 'يجب ان لا يحتوي على حروف انجليزية او ارقام'])
-                                ->maxLength(120)
-                                ->rule('regex:/^[\p{Arabic}\s]+$/u') // السماح بالأحرف العربية فقط
-                                ->rule(function ($get, $record) {
-                                    return function ($attribute, $value, $fail) use ($get, $record) {
-                                        $licenseTypeId = $get('license_type_id'); // الحصول على نوع الترخيص
+        ->label('اسم النشاط')
+        ->required()
+        ->validationMessages([
+            'regex' => 'يجب ان لا يحتوي على حروف انجليزية او ارقام'
+        ])
+        ->maxLength(120)
+        ->rule('regex:/^[\p{Arabic}\s]+$/u') // السماح بالأحرف العربية فقط
+        ->rule(function ($get, $record) {
+            return function ($attribute, $value, $fail) use ($get, $record) {
+                // Convert value to UTF-8 if not already
+                $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
 
-                                        // إذا كان السجل موجودًا (تعديل)، استثنِ السجل الحالي من التحقق
-                                        $exists = \App\Models\IssuingLicense::where('projectName', $value)
-                                            ->where('license_type_id', $licenseTypeId)
-                                            ->when($record, function ($query) use ($record) {
-                                                return $query->where('id', '!=', $record->id); // استثناء السجل الحالي
-                                            })
-                                            ->exists();
+                $licenseTypeId = $get('license_type_id'); // الحصول على نوع الترخيص
 
-                                        if ($exists) {
-                                            $fail('اسم المشروع مع النوع المحدد موجود بالفعل.');
-                                        }
-                                    };
-                                }),
+                // إذا كان السجل موجودًا (تعديل)، استثنِ السجل الحالي من التحقق
+                $exists = \App\Models\IssuingLicense::where('projectName', $value)
+                    ->where('license_type_id', $licenseTypeId)
+                    ->when($record, function ($query) use ($record) {
+                        return $query->where('id', '!=', $record->id);
+                    })
+                    ->exists();
+
+                if ($exists) {
+                    $fail(mb_convert_encoding('اسم المشروع مع النوع المحدد موجود بالفعل.', 'UTF-8', 'UTF-8'));
+                }
+            };
+        }),
+                        
+                        
                             TextInput::make('nearestLandmark')
                                 ->label('تخصص النشاط')
-                                ->maxLength(100),
+                                ->maxLength(180),
                             Select::make('positionInProject')
                                 ->label('صفتك في النشاط') // التسمية للحقل
                                 ->options([
@@ -220,7 +230,7 @@ class IssuingLicenseResource extends Resource
                               ->label('تاريخ الانتهاء')
                               ->required()
                               ->default(fn ($get) => Carbon::now()->addYears($get('licenseDuration') ?? 1)->toDateString()),
-        // استخدم Carbon هنا أيضًا
+        // استخدم Carbon ��نا أيضًا
                         ])->columns(3),
 
 
@@ -255,8 +265,14 @@ class IssuingLicenseResource extends Resource
                 TextColumn::make('projectName')->label('اسم المشروع')->searchable()->toggleable(isToggledHiddenByDefault: false),
                 TextColumn::make('positionInProject')->label('صفتك في المشروع')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('projectAddress')->label('عنوان المشروع')->searchable()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('municipality')->label('البلدية')->sortable()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('region')->label('المحلة')->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('municipality.name')
+                    ->label('البلدية')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('region.name')
+                    ->label('المحلة')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nearestLandmark')->label('تخصص النشاط')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('license_type_id')
                     ->label('نوع الترخيص')
@@ -444,6 +460,13 @@ class IssuingLicenseResource extends Resource
            ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make(),
+                Tables\Actions\BulkAction::make('print')
+                    ->label('طباعة التقرير')
+                    ->icon('heroicon-o-printer')
+                    ->color('success')
+                    ->action(function (Collection $licenses) {
+                        return static::printFilteredRecords($licenses);
+                    })
             ]);
     }
 
@@ -475,55 +498,97 @@ class IssuingLicenseResource extends Resource
     }
 
 
-    public static function printRecord($record): \Illuminate\Foundation\Application|\Illuminate\Http\Response|\Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory
+    public static function printRecord($record)
     {
         // إعداد مسار الخطوط
         $fontDirs = (new \Mpdf\Config\ConfigVariables())->getDefaults()['fontDir'];
-        $fontDirs[] = resource_path('fonts'); // إضافة مسار الخطوط
+        $fontDirs[] = resource_path('fonts');
 
         // إعداد بيانات الخطوط
         $fontData = (new \Mpdf\Config\FontVariables())->getDefaults()['fontdata'];
-        $fontData['amiri'] = [ // خط "Amiri" يدعم النصوص العربية المتصلة
-            'R' => 'Amiri-Regular.ttf',    // النسخة العادية
-            'B' => 'Amiri-Bold.ttf',       // النسخة العريضة
+        $fontData['amiri'] = [
+            'R' => 'Amiri-Regular.ttf',
+            'B' => 'Amiri-Bold.ttf',
         ];
 
         // إنشاء كائن Mpdf
         $mpdf = new \Mpdf\Mpdf([
-            'default_font' => 'amiri',      // تعيين Amiri كخط افتراضي
-            'fontDir' => $fontDirs,         // إضافة مسار الخطوط
-            'fontdata' => $fontData,        // إضافة بيانات الخطوط
-            'mode' => 'utf-8',              // دعم UTF-8
-            'directionality' => 'rtl',      // دعم النصوص من اليمين إلى اليسار
+            'mode' => 'utf-8', 
+            'format' => 'A4', 
+            'default_font' => 'amiri',
+            'tempDir' => storage_path('temp'),
+            'fontDir' => array_merge($fontDirs, [
+                resource_path('fonts'),
+            ]),
+            'fontdata' => $fontData,
+            'default_font_size' => 12,
         ]);
+
+        $mpdf->SetDirectionality('rtl');
+        $mpdf->autoScriptToLang = true;
+        $mpdf->autoLangToFont = true;
 
         // حساب "المدة بالحروف"
         $modah = isset($record->licenseDuration)
-            ? \App\Helpers\NumberHelper::yearsToWords($record->licenseDuration)
-            : 'غير محدد';
+            ? \App\Helpers\NumberHelper::amountToWords($record->licenseDuration)
+            : '';
 
-        // حساب الإجمالي بالحروف
-        $ejmalybelhroof = isset($record->discount) && $record->discount > 0
-            ? \App\Helpers\NumberHelper::amountToWords($record->discount)
-            : 'لا توجد بيانات';
+        // حساب "الإجمالي بالحروف"
+        $ejmalybelhroof = isset($record->totalAmount)
+            ? \App\Helpers\NumberHelper::amountToWords($record->totalAmount)
+            : '';
 
-        // إنشاء محتوى التقرير باستخدام عرض Blade
+        // تحميل قالب البليد مع البيانات
         $html = view('reports.single_license', [
             'record' => $record,
-            'modah' => $modah,
+            'modah'  => $modah,
             'ejmalybelhroof' => $ejmalybelhroof,
         ])->render();
 
+        // Ensure proper UTF-8 encoding
+        $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+        
         // كتابة التقرير إلى ملف PDF
         $mpdf->WriteHTML($html);
 
         // عرض ملف PDF مباشرة
-        return response($mpdf->Output('license-' . $record->id . '.pdf', 'I'), 200)
-            ->header('Content-Type', 'application/pdf');
+        return response($mpdf->Output('license-' . $record->id . '.pdf', 'S'), 200)
+            ->header('Content-Type', 'application/pdf; charset=utf-8');
     }
 
 
-    function numberToWords($number, $locale = 'ar'): string
+    public static function printFilteredRecords($records)
+    {
+        // Create PDF instance with basic UTF-8 configuration
+        $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4-L',
+            'default_font' => 'dejavusans',
+            'tempDir' => storage_path('temp')
+        ]);
+
+        $mpdf->SetDirectionality('rtl');
+        
+        // Convert the view to UTF-8 encoded HTML
+        $html = view('pdf.licenses-report', [
+            'licenses' => $records,
+            'filters' => request()->query(),
+        ])->render();
+
+        // Ensure UTF-8 encoding
+        $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
+        
+        // Write content
+        $mpdf->WriteHTML($html);
+
+        // Output as string with UTF-8 headers
+        return response($mpdf->Output('', 'S'))
+            ->header('Content-Type', 'application/pdf; charset=utf-8')
+            ->header('Content-Disposition', 'attachment; filename=licenses-report.pdf');
+    }
+
+
+    protected static function numberToWords($number, $locale = 'ar'): string
     {
         $formatter = new \NumberFormatter($locale, \NumberFormatter::SPELLOUT);
         return $formatter->format($number);

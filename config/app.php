@@ -15,6 +15,7 @@ return [
     | any other location as required by the application or its packages.
     |
     */
+    'charset' => 'UTF-8',
 
     'name' => env('APP_NAME', 'Laravel'),
 
@@ -169,6 +170,9 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\Filament\AppPanelProvider::class,
         App\Providers\RouteServiceProvider::class,
+
+
+
     ])->toArray(),
 
     /*
