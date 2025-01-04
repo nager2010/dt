@@ -41,11 +41,31 @@ class IssuingLicenseResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationLabel = 'اصدار الرخص';
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()->can('view_issuing_licenses');
+    }
 
+    public static function canCreate(): bool
+    {
+        return auth()->user()->can('create_issuing_licenses');
+    }
 
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()->can('edit_issuing_licenses');
+    }
 
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()->can('delete_issuing_licenses');
+    }
 
+    protected static ?string $recordTitleAttribute = 'projectName';
 
+    protected static ?string $navigationGroup = 'الرخص';
+
+    protected static ?int $navigationSort = 2;
 
     public static function form(Forms\Form $form): Forms\Form
     {
@@ -410,9 +430,9 @@ class IssuingLicenseResource extends Resource
                             TextInput::make('projectName')
                                 ->label('اسم التجاري')
                                 ->disabled(),
-                            TextInput::make('remainingDays')
-                                ->label('الأيام المتبقية')
-                                ->disabled(),
+                            // TextInput::make('remainingDays')
+                            //     ->label('الأيام المتبقية')
+                            //     ->disabled(),
                             TextInput::make('discount')
                                 ->label('الإجمالي')
                                 ->disabled()
@@ -451,12 +471,12 @@ class IssuingLicenseResource extends Resource
 
         //add printing
                 Action::make('print')
-                    ->label('طباعة')
-                    ->icon('heroicon-o-printer')
-                    ->action(function ($record) {
-                        return \App\Filament\Resources\IssuingLicenseResource::printRecord($record);
-                    })
-                    ->color('primary'), // تخصيص اللون,
+    ->label('طباعة')
+    ->icon('heroicon-o-printer')
+    ->action(function ($record) {
+        return \App\Filament\Resources\IssuingLicenseResource::printRecord($record);
+    })
+    ->color('primary'),
            ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make(),

@@ -38,13 +38,14 @@ class MunicipalGuardManagerPage extends Page implements HasTable // إضافة �
                 TextColumn::make('fullName')
                     ->label('اسم صاحب الرخصة')
                     ->searchable(),
-                BadgeColumn::make('status')
+                TextColumn::make('status')
                     ->label('الحالة')
-                    ->formatStateUsing(fn (string $state): string => $state === 'منتهية' ? 'منتهية' : 'سارية')
-                    ->colors([
-                        'danger' => fn ($state): bool => $state === 'منتهية',
-                        'success' => fn ($state): bool => $state === 'سارية',
-                    ]),
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'منتهية' => 'danger',
+                        'سارية' => 'success',
+                        default => 'warning',
+                    }),
             ])
             ->filters([
 //                Filter::make('licenseNumber')

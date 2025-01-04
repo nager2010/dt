@@ -24,21 +24,19 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Filament\Forms\Components\Html;
 
-
 class LicenseRequestResource extends Resource
 {
     protected static ?string $model = LicenseRequest::class;
 
     public static function canViewAny(): bool
     {
-        return true; // السماح لجميع المستخدمين بعرض المورد
+        return auth()->user()->can('view_license_requests');
     }
 
     public static function canCreate(): bool
     {
-        return true; // السماح لجميع المستخدمين بإنشاء السجلات
+        return auth()->user()->can('create_license_requests');
     }
-
 
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
     {
@@ -50,11 +48,13 @@ class LicenseRequestResource extends Resource
         return false; // منع الحذف
     }
 
-
-
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     protected static ?string $navigationLabel = 'طلبات التراخيص';
+
+    protected static ?string $label = 'طلب تراخيص';
+
+    // protected static ?string $slug = 'طلبات التراخيص';
 
     public static function mutateFormDataBeforeCreate(array $data): array
     {
@@ -73,9 +73,6 @@ class LicenseRequestResource extends Resource
 
         return $data;
     }
-
-
-
 
     public static function form(Forms\Form $form): Forms\Form
     {
@@ -219,8 +216,7 @@ class LicenseRequestResource extends Resource
             ])->columns(1);
     }
 
-
-        public static function table(Table $table): Table
+    public static function table(Table $table): Table
     {
         return $table
             ->columns([
@@ -270,11 +266,11 @@ class LicenseRequestResource extends Resource
             TextInput::make('nationalID')
             ->label('الرقم الوطني')
             ->default(fn ($record) => $record->nationalID)
-            ->rule('regex:/^(119|120|219|220)\d{8}$/') // يجب أن يبدأ بـ 119 أو 120 أو 219 أو 220 ويليه 8 أرقام
+            ->rule('regex:/^(119|120|219|220)\d{9}$/') // يجب أن يبدأ بـ 119 أو 120 أو 219 أو 220 ويليه 8 أرقام
             ->validationMessages([
                 'regex' => 'الرقم الوطني يجب أن يبدأ بـ 1 أو 2 ويتكون من 12 رقمًا.',
             ]),
-        
+
 
             TextInput::make('passportOrID')
             ->label('رقم جواز أو بطاقة')
@@ -283,7 +279,7 @@ class LicenseRequestResource extends Resource
             ->validationMessages([
                 'regex' => 'رقم جواز السفر أو البطاقة يجب أن يتكون من 5 إلى 10 حروف أو أرقام إنجليزية فقط.',
             ]),
-        
+
 
         TextInput::make('phoneNumber')
             ->label('رقم الهاتف')
@@ -337,17 +333,16 @@ class LicenseRequestResource extends Resource
                     $set('endDate', now()->addYears($state)->toDateString());
                 }
             }),
-        
+
         DatePicker::make('licenseDate')
             ->label('تاريخ الإصدار')
             ->default(now()->toDateString())
             ->required(),
-        
+
         DatePicker::make('endDate')
             ->label('تاريخ الانتهاء')
             ->required()
             ->default(fn ($get) => now()->addYears($get('licenseDuration') ?? 1)->toDateString()),
-        
     ])
     ->action(function ($record, $data) {
         // إنشاء رقم ترخيص إذا لم يكن موجودًا
@@ -390,7 +385,7 @@ class LicenseRequestResource extends Resource
     ->requiresConfirmation()
     ->modalHeading('موافقة الطلب')
     ->visible(fn ($record) => $record->status === 'Pending'),
-               
+
 
                 Action::make('reject')
                     ->label('رفض')
@@ -416,11 +411,9 @@ class LicenseRequestResource extends Resource
 
 
                 Tables\Actions\EditAction::make(),
-                
-                
-            ]);
-            
 
+
+            ]);
     }
 
     public static function getRelations(): array
@@ -438,6 +431,4 @@ class LicenseRequestResource extends Resource
             'edit' => Pages\EditLicenseRequest::route('/{record}/edit'),
         ];
     }
-
-
 }

@@ -1,0 +1,102 @@
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}
+
+@media (max-width: 640px) {
+    #reader {
+        width: 100% !important;
+    }
+    
+    #reader video {
+        width: 100% !important;
+        height: auto !important;
+    }
+}
+
+.qr-scanner-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.qr-scanner-loading::after {
+    content: '';
+    width: 32px;
+    height: 32px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0891b2;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.license-status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.license-status.active {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.license-status.expired {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* QR Scanner Customization */
+#reader {
+    border: 2px solid #0891b2 !important;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+#reader__scan_region {
+    background: #ecfeff;
+}
+
+#reader__scan_region > img {
+    max-width: 100%;
+    height: auto;
+}
+
+#reader__dashboard {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 1rem !important;
+}
+
+#reader__dashboard_section_swaplink {
+    color: #0891b2 !important;
+}
+
+#reader__dashboard_section_csr button {
+    background: #0891b2 !important;
+    color: white !important;
+    border-radius: 0.375rem !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    border: none !important;
+    cursor: pointer !important;
+}
+
+#reader__dashboard_section_csr button:hover {
+    background: #0e7490 !important;
+}
+
+#reader__status_span {
+    color: #0891b2 !important;
+    font-weight: 500 !important;
+}

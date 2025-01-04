@@ -16,13 +16,12 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Carbon\Carbon;
 
-
 class ExpiredLicensesResource extends Resource
 {
     protected static ?string $model = IssuingLicense::class;
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationLabel = 'الرخص المنتهية';
-    protected static ?string $slug = 'expired-licenses';
+    // protected static ?string $slug = 'الرخص المنتهية';
 
     public static function form(Forms\Form $form): Forms\Form
     {
@@ -54,54 +53,87 @@ class ExpiredLicensesResource extends Resource
             )
             ->columns([
                 TextColumn::make('fullName')
-                    ->label('الاسم الرباعي')
+                    ->label('الاسم الكامل')
                     ->searchable()
-                    ->sortable()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: false),
-
-                TextColumn::make('projectName')
-                    ->label('اسم المشروع')
+                    ->sortable(),
+                TextColumn::make('nationalID')
+                    ->label('الرقم الوطني')
                     ->searchable()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: false),
-
+                    ->sortable(),
+                TextColumn::make('licenseNumber')
+                    ->label('رقم الرخصة')
+                    ->searchable()
+                    ->sortable(),
+                BadgeColumn::make('licenseType')
+                    ->label('نوع الرخصة')
+                    ->colors([
+                        'warning' => 'مؤقتة',
+                        'success' => 'دائمة',
+                    ]),
+                TextColumn::make('licenseFee')
+                    ->label('رسوم الترخيص')
+                    ->money('iqd')
+                    ->sortable(),
+                TextColumn::make('licenseDuration')
+                    ->label('مدة الترخيص')
+                    ->suffix(' سنة')
+                    ->sortable(),
                 TextColumn::make('licenseDate')
                     ->label('تاريخ الإصدار')
-                    ->toggleable(isToggledHiddenByDefault: false)
-                    ->sortable()
-                    ->date(),
-
+                    ->date()
+                    ->sortable(),
                 TextColumn::make('endDate')
                     ->label('تاريخ الانتهاء')
                     ->date()
-                    ->toggleable(isToggledHiddenByDefault: false)
                     ->sortable(),
-
-                TextColumn::make('licenseFee')
-                    ->label('رسوم الترخيص')
-                    ->toggleable(isToggledHiddenByDefault: false)
-                    ->sortable(),
-
-                BadgeColumn::make('status')
-                    ->label('الحالة')
-                    ->toggleable(isToggledHiddenByDefault: false)
+                BadgeColumn::make('renewal_status')
+                    ->label('حالة التجديد')
+                    ->getStateUsing(function ($record) {
+                        return $record->endDate && $record->endDate >= now() ? 'تم التجديد' : 'منتهية';
+                    })
                     ->colors([
-                        'danger' => fn ($record) => $record->endDate && $record->endDate < now(),
-                        'success' => fn ($record) => $record->endDate && $record->endDate >= now(),
-                        'secondary' => fn ($record) => !$record->endDate,
-                    ])
-                    ->formatStateUsing(function ($record) {
-                        if (!$record->endDate) {
-                            return 'قيد الإجراء';
-                        }
-                        return $record->endDate > now() ? 'سارية' : 'تحتاج تجديد';
-                    }),
+                        'success' => fn ($state) => $state === 'تم التجديد',
+                        'danger' => fn ($state) => $state === 'منتهية',
+                    ]),
             ])
             ->filters([
-                Filter::make('منتهية')
-                    ->query(fn($query) => $query->where('endDate', '<', now()))
-                    ->label('الرخص المنتهية'),
+                Filter::make('renewal_status')
+                    ->label('حالة التجديد')
+                    ->form([
+                        Forms\Components\Select::make('renewal_status')
+                            ->label('حالة التجديد')
+                            ->options([
+                                'renewed' => 'تم التجديد',
+                                'expired' => 'منتهية',
+                            ])
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (isset($data['renewal_status'])) {
+                            if ($data['renewal_status'] === 'renewed') {
+                                return $query->where('endDate', '>=', now());
+                            } elseif ($data['renewal_status'] === 'expired') {
+                                return $query->where('endDate', '<', now());
+                            }
+                        }
+                    }),
+                Filter::make('renewal_date')
+                    ->form([
+                        Forms\Components\DatePicker::make('renewed_from')
+                            ->label('تم التجديد من'),
+                        Forms\Components\DatePicker::make('renewed_until')
+                            ->label('تم التجديد إلى'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when(
+                                $data['renewed_from'],
+                                fn($query) => $query->whereDate('licenseDate', '>=', $data['renewed_from'])
+                            )
+                            ->when(
+                                $data['renewed_until'],
+                                fn($query) => $query->whereDate('licenseDate', '<=', $data['renewed_until'])
+                            );
+                    })
             ])
             ->defaultSort('endDate', 'desc')
             ->actions([
@@ -169,10 +201,27 @@ class ExpiredLicensesResource extends Resource
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make(),
             ]);
-
-
     }
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()->can('view_expired_licenses');
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return false;
+    }
 
     public static function getPages(): array
     {

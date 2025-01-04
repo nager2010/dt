@@ -6,7 +6,7 @@ return [
         'slug' => 'shield/roles',
         'navigation_sort' => -1,
         'navigation_badge' => true,
-        'navigation_group' => true,
+        'navigation_group' => 'الإعدادات',
         'is_globally_searchable' => false,
         'show_model_path' => true,
     ],
@@ -31,14 +31,9 @@ return [
             'view_any',
             'create',
             'update',
-            'restore',
-            'restore_any',
-            'replicate',
-            'reorder',
             'delete',
             'delete_any',
-            'force_delete',
-            'force_delete_any',
+            'print',
         ],
 
         'page' => 'page',
@@ -50,7 +45,27 @@ return [
         'widgets' => true,
         'resources' => true,
         'custom_permissions' => [
-            'scan_licenses' => 'Scan QR Licenses',
+            'license_requests' => [
+                'title' => 'طلبات التراخيص',
+                'permissions' => [
+                    'approve_license_request' => 'الموافقة على الطلب',
+                    'reject_license_request' => 'رفض الطلب',
+                ],
+            ],
+            'issuing_licenses' => [
+                'title' => 'التراخيص المصدرة',
+                'permissions' => [
+                    'print_license' => 'طباعة الترخيص',
+                    'scan_licenses' => 'مسح QR للتراخيص',
+                ],
+            ],
+            'settings' => [
+                'title' => 'إعدادات النظام',
+                'permissions' => [
+                    'manage_settings' => 'إدارة الإعدادات',
+                    'manage_roles' => 'إدارة الأدوار والصلاحيات',
+                ],
+            ],
         ],
     ],
 

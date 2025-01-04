@@ -17,7 +17,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use App\Filament\Pages\MunicipalGuardQrScanner;
+use ShuvroRoy\FilamentSpatieLaravelHealth\FilamentSpatieLaravelHealthPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -25,8 +25,8 @@ class AdminPanelProvider extends PanelProvider
     {
         return $panel
             ->default()
-            ->id('admin')
-            ->path('admin')
+            ->id('app')
+            ->path('app')
             ->login()
             ->colors([
                 'primary' => Color::Amber,
@@ -55,8 +55,16 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->viteTheme('resources/css/filament/admin/theme.css')
-            ->rtl()
+            ->plugins([
+                FilamentSpatieLaravelHealthPlugin::make(),
+            ])
+            ->navigationGroups([
+                'التراخيص',
+                'الإعدادات',
+            ])
+            ->brandName('نظام إدارة الرخص التجارية')
+            ->brandLogo(asset('images/logo.png'))
+            ->favicon(asset('images/favicon.png'))
             ->maxContentWidth('full');
     }
 }

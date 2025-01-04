@@ -8,7 +8,7 @@
         "php": "^8.1",
         "ext-gd": "*",
         "anhskohbo/no-captcha": "^3.6",
-        "barryvdh/laravel-dompdf": "*",
+        "barryvdh/laravel-dompdf": "^3.0",
         "bezhansalleh/filament-shield": "^3.3",
         "filament/filament": "^3.2",
         "flowframe/laravel-trend": "^0.3.0",
@@ -18,7 +18,9 @@
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "mpdf/mpdf": "^8.2",
+        "shuvroroy/filament-spatie-laravel-health": "^2.3",
         "simplesoftwareio/simple-qrcode": "^4.2",
+        "spatie/laravel-backup": "^9.1",
         "spatie/laravel-permission": "^6.10"
     },
     "require-dev": {
